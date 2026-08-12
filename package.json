@@ -1,0 +1,17 @@
+{
+  "name": "ms-routine-capacitor",
+  "version": "3.0.0",
+  "private": true,
+  "description": "MS Routine Android app with exact background school bell alarms",
+  "scripts": {
+    "sync": "npx cap sync android",
+    "open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/core": "latest",
+    "@capacitor/android": "latest"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "latest"
+  }
+}

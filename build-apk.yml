@@ -1,0 +1,79 @@
+name: Build MS Routine Android APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Capacitor
+        run: npm install
+
+      - name: Create Android project
+        run: npx cap add android
+
+      - name: Sync web app
+        run: npx cap sync android
+
+      - name: Copy native exact-alarm bell plugin
+        run: |
+          mkdir -p android/app/src/main/java/np/edu/mangalsingh/routine
+          cp native-android/np/edu/mangalsingh/routine/*.java android/app/src/main/java/np/edu/mangalsingh/routine/
+
+      - name: Add exact-alarm permissions and receivers
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/app/src/main/AndroidManifest.xml")
+          s=p.read_text()
+          additions=Path("android-manifest-additions.xml").read_text()
+          s=s.replace('<application', additions+'\n\n    <application', 1)
+          p.write_text(s)
+          PY
+
+      - name: Install custom school bell sound
+        run: |
+          mkdir -p android/app/src/main/res/raw
+          cp android-sound/bell.wav android/app/src/main/res/raw/bell.wav
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ms-routine-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish latest APK release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: latest-build
+          name: "MS Routine — Background Bell APK"
+          allowUpdates: true
+          replacesArtifacts: true
+          artifacts: android/app/build/outputs/apk/debug/app-debug.apk
+          body: |
+            MS Routine Android APK.
+            Exact Alarm + custom school bell + boot restore + sleep/Doze handling.
