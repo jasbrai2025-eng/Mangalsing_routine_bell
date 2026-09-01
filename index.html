@@ -384,6 +384,17 @@
             </div>
         </div>
 
+        <!-- Leisure (Free) Teacher List - हालको पिरियडमा फुर्सदमा भएका शिक्षकहरू -->
+        <div id="leisureTeacherCard" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <i class="fa-solid fa-mug-hot text-emerald-600"></i> फुर्सद शिक्षक सूची (Leisure Teachers)
+                <span id="leisureTeacherPeriodLabel" class="ml-auto text-[10px] sm:text-xs font-semibold text-slate-500"></span>
+            </h3>
+            <div id="leisureTeacherContainer" class="flex flex-wrap gap-1.5 text-xs">
+                <!-- Dynamic leisure teacher badges generated here -->
+            </div>
+        </div>
+
         <!-- Custom Notification Alert Modal (No dynamic alert()!) -->
         <div id="customModal" class="hidden fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
             <div class="bg-white rounded-3xl p-5 max-w-sm w-full shadow-2xl space-y-3 border border-slate-200 text-center">
@@ -403,7 +414,7 @@
             <div class="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto no-scrollbar">
                 <div class="flex items-center justify-between border-b pb-3">
                     <h3 class="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                        <i class="fa-solid fa-mobile-screen-button text-emerald-600"></i> 'Add to Home Screen' नदेखिएमा के गर्ने?
+                        <i class="fa-solid fa-download text-emerald-600"></i> इन्स्टल अप्सन नदेखिएमा के गर्ने? (Mobile / Desktop)
                     </h3>
                     <button onclick="closePWAHelpModal()" class="text-slate-400 hover:text-slate-700">
                         <i class="fa-solid fa-xmark text-xl"></i>
@@ -459,6 +470,19 @@
                         </span>
                         <p class="text-xs leading-relaxed text-slate-700">
                             Chrome को ३ थोप्ला थिचेर <b>'Desktop site'</b> को अगाडिको टिकमार्क (Tick) हटाइदिनुहोस्।
+                        </p>
+                    </div>
+
+                    <div class="bg-emerald-50/80 p-3 rounded-2xl border border-emerald-100">
+                        <span class="font-bold text-emerald-950 block mb-1 flex items-center gap-1.5">
+                            <span class="bg-emerald-600 text-white rounded-full w-5 h-5 inline-flex items-center justify-center text-[10px]">५</span>
+                            <i class="fa-solid fa-desktop text-emerald-700"></i> Windows / Mac (Computer) मा:
+                        </span>
+                        <p class="text-xs leading-relaxed text-slate-700">
+                            <b>Chrome वा Edge</b> मा यो पेज खोलेर, ठेगाना पट्टी (address bar) को <b>दायाँतिर</b> रहेको सानो <b>⊕ (install)</b> आइकनमा क्लिक गर्नुहोस्। त्यो आइकन नदेखिए, माथिल्लो दायाँ कुनाको <b>⋮ (तीन थोप्ला)</b> मेनु खोलेर <b>'Install MS Routine...'</b> वा <b>'Apps → Install this site as an app'</b> छान्नुहोस्। इन्स्टल भएपछि एप Windows Start Menu वा Mac Applications मा छुट्टै प्रोग्रामझैं देखा पर्नेछ।
+                        </p>
+                        <p class="text-[11px] leading-relaxed text-slate-500 mt-1.5">
+                            ⚠️ नोट: Firefox वा Safari (Windows/Mac) मा यो 'Install' सुविधा उपलब्ध छैन — त्यहाँ ब्राउजरबाटै सिधै एप खोल्नुहोस्, वा Chrome/Edge प्रयोग गर्नुहोस्।
                         </p>
                     </div>
                 </div>
@@ -637,6 +661,7 @@
         let simulatedMinutes = 10 * 60 + 0;
         let selectedTeacher = "NONE";
         let lastActivePeriodId = null;
+        let allTeacherCodes = [];
 
         // पृष्ठभूमि सूचना सेटिङ localStorage मा सुरक्षित राख्ने ताकि एप बन्द/रिफ्रेस
         // भए पनि, वा फोन रिस्टार्ट भए पछि पनि, प्रयोगकर्ताले आफैं "निष्क्रिय" नथिचेसम्म
@@ -1083,6 +1108,7 @@
             });
 
             const sortedTeachers = Array.from(teacherSet).sort();
+            allTeacherCodes = sortedTeachers;
             const selectEl = document.getElementById("teacherSelect");
             const badgesContainer = document.getElementById("teacherBadgesContainer");
 
@@ -1271,6 +1297,50 @@
                 lastActivePeriodId = activePeriod ? activePeriod.id : null;
                 renderRoutine();
             }
+
+            updateLeisureTeacherList(activePeriod);
+        }
+
+        // हालको पिरियडमा कक्षा नलिएका (फुर्सदमा भएका) शिक्षकहरूको सूची देखाउने।
+        // यो हरेक सेकेन्ड (updateTimerOnly मार्फत) चल्छ, त्यसैले पिरियड बदलिनासाथ
+        // यो सूची पनि स्वतः अपडेट हुन्छ।
+        function updateLeisureTeacherList(activePeriod) {
+            const container = document.getElementById("leisureTeacherContainer");
+            const periodLabel = document.getElementById("leisureTeacherPeriodLabel");
+            if (!container || !periodLabel) return;
+
+            const classPeriodIds = ["p1", "p2", "p3", "p4", "p5", "p6", "p7"];
+
+            if (!activePeriod || !classPeriodIds.includes(activePeriod.id)) {
+                periodLabel.textContent = "";
+                container.innerHTML = `<span class="text-slate-500 text-[11px] italic">हाल कुनै कक्षा-पिरियड सञ्चालनमा नभएकाले फुर्सद सूची लागू हुँदैन।</span>`;
+                return;
+            }
+
+            const busyTeachers = new Set();
+            routineData.forEach(row => {
+                const cell = row[activePeriod.id];
+                if (cell && cell.tr) {
+                    cell.tr.split('+').forEach(t => busyTeachers.add(t.trim()));
+                }
+            });
+
+            const leisureTeachers = allTeacherCodes.filter(code => !busyTeachers.has(code));
+
+            periodLabel.textContent = `(${activePeriod.name})`;
+            container.innerHTML = "";
+
+            if (leisureTeachers.length === 0) {
+                container.innerHTML = `<span class="text-slate-500 text-[11px] italic">अहिले कुनै शिक्षक फुर्सदमा छैनन्।</span>`;
+                return;
+            }
+
+            leisureTeachers.forEach(code => {
+                const badge = document.createElement("span");
+                badge.className = "bg-emerald-50 text-emerald-900 font-bold border border-emerald-200 px-2.5 py-1 rounded-xl flex items-center gap-1 shadow-sm";
+                badge.innerHTML = `<i class="fa-solid fa-mug-hot text-emerald-600"></i> ${code}`;
+                container.appendChild(badge);
+            });
         }
 
         function toggleSimMode(enable) {
@@ -1373,6 +1443,18 @@
             if (isRunningStandalone()) {
                 const pwaBtn = document.getElementById('pwaInstallBtn');
                 if (pwaBtn) pwaBtn.classList.add('hidden');
+            } else {
+                // Firefox/Safari, वा 'beforeinstallprompt' कुनै कारणले (पहिले नै एकपटक
+                // dismiss गरेको, criteria अझै check भइरहेको, आदि) समयमै नआएको खण्डमा पनि
+                // प्रयोगकर्तासँग install/instructions बटन उपलब्ध होस् भनेर, केही सेकेन्डपछि
+                // बटन जबरजस्ती देखाइदिने (देखिएपछि थिच्दा deferredPWAInstallPrompt भए
+                // सिधै install हुन्छ, नभए सहयोगी instructions देखिन्छ)।
+                setTimeout(() => {
+                    const pwaBtn = document.getElementById('pwaInstallBtn');
+                    if (pwaBtn && pwaBtn.classList.contains('hidden') && !isRunningStandalone()) {
+                        pwaBtn.classList.remove('hidden');
+                    }
+                }, 3000);
             }
             registerServiceWorker();
             populateTeacherDropdown();
